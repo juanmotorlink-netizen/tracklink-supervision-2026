@@ -1,0 +1,9 @@
+{
+  "name": "TRACKLINK SUPERVISIÓN 2026",
+  "short_name": "Tracklink 2026",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f2f5f8",
+  "theme_color": "#102b46",
+  "icons": []
+}
