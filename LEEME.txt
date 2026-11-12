@@ -1,0 +1,29 @@
+TRACKLINK SUPERVISIÓN 2026 — PAQUETE ACTUALIZADO SIN FIREBASE
+
+CONTENIDO
+- index.html: pantalla y formulario de la aplicación.
+- app.js: guardado local de registros, fotografías y firmas; edición, eliminación confirmada y estadísticas.
+- styles.css: diseño adaptable a celular y computadora.
+- manifest.json, sw.js e icons/: instalación como acceso directo/PWA y caché básica.
+
+PUBLICAR EN GITHUB PAGES
+1. Descarga y extrae este ZIP en tu computadora.
+2. En GitHub abre el repositorio tracklink-supervision-2026.
+3. Sube/reemplaza los archivos de la carpeta en la raíz del repositorio:
+   index.html, app.js, styles.css, manifest.json y sw.js.
+4. Sube también la carpeta icons completa.
+5. Pulsa Commit changes.
+6. Espera a que GitHub Pages actualice el sitio y abre el acceso directo de TRACKLINK.
+
+USO
+- En el primer ingreso escribe el usuario y contraseña que deseas crear para ese dispositivo.
+- Los registros, fotos y firmas quedan guardados localmente en ese navegador/dispositivo.
+- La eliminación pide confirmación.
+- La exportación Excel necesita internet para cargar la librería XLSX.
+- Haz pruebas antes de usar datos reales.
+
+IMPORTANTE
+Este paquete es una aplicación web instalable (PWA), no un APK publicado en Play Store.
+No utiliza Firebase ni requiere activar un plan de pago.
+No sincroniza automáticamente los registros entre celulares. Conserva copias de seguridad periódicas.
+La cuenta local es una protección básica del dispositivo, no autenticación empresarial.
