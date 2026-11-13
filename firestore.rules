@@ -4,44 +4,32 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function signedIn() {
-      return request.auth != null;
+    function esSupervisor() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'supervisor';
     }
 
-    function isStaff() {
-      return signedIn() &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    // Registros de supervisión
+    match /supervisiones/{registro} {
+      allow read, write: if esSupervisor();
     }
 
-    function isAdmin() {
-      return isStaff() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    // Fotografías de las supervisiones
+    match /evidencias/{evidencia} {
+      allow read, write: if esSupervisor();
     }
 
-    match /users/{uid} {
-      allow read: if signedIn() &&
-        (request.auth.uid == uid || isAdmin());
-
-      allow write: if isAdmin();
+    // Usuarios
+    match /usuarios/{usuario} {
+      allow read: if request.auth != null
+        && request.auth.uid == usuario;
+      allow write: if false;
     }
 
-    match /supervisiones/{id} {
-      allow read: if isStaff();
-
-      allow create, update: if isStaff();
-
-      allow delete: if isAdmin() ||
-        (isStaff() && resource.data.ownerUid == request.auth.uid);
-    }
-
-    match /evidencias/{id} {
-      allow read: if isStaff();
-
-      allow create, update: if isStaff() &&
-        request.resource.data.ownerUid == request.auth.uid;
-
-      allow delete: if isAdmin() ||
-        (isStaff() && resource.data.ownerUid == request.auth.uid);
+    // Bloquear cualquier otra colección
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
