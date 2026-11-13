@@ -1,5 +1,4 @@
-// Configuración de Firebase para TRACKLINK SUPERVISIÓN 2026
-// Estos identificadores corresponden a la aplicación web registrada en Firebase.
+
 export const firebaseConfig = {
   apiKey: "AIzaSyD5Ok74e5WExDh0fggYNS2i_Lffk7RNdu4",
   authDomain: "tracklink-supervision-2026.firebaseapp.com",
