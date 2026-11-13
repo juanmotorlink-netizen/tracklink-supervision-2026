@@ -1,113 +1,65 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#102b46">
-<link rel="manifest" href="manifest.json">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#102b46"><link rel="manifest" href="manifest.json">
 <title>TRACKLINK SUPERVISIÓN 2026</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header>
-  <div class="brand">TRACKLINK <span>SUPERVISIÓN 2026</span></div>
-  <div id="session"></div>
-</header>
+<header><div class="brand">TRACKLINK <span>SUPERVISIÓN 2026</span></div><div id="session"></div></header>
 <main>
-  <section id="login" class="panel">
-    <h1>Acceso de supervisores</h1>
-    <p>Ingresa con tu cuenta local de supervisor.</p>
-    <label>Usuario<input id="email" type="text" autocomplete="username"></label>
-    <label>Contraseña<input id="password" type="password" autocomplete="current-password"></label>
-    <button id="loginBtn" type="button">Ingresar</button>
-    <p id="loginMsg" class="muted">Primer ingreso: crea tu usuario y contraseña para este dispositivo.</p>
-  </section>
-
-  <section id="app" hidden>
-    <nav>
-      <button data-tab="registro" class="active" type="button">Nuevo registro</button>
-      <button data-tab="lista" type="button">Registros</button>
-      <button data-tab="estadisticas" type="button">Estadísticas</button>
-    </nav>
-
-    <section id="registro" class="panel tab">
-      <h1>Supervisión técnica</h1>
-      <form id="recordForm">
-        <input id="recordId" type="hidden">
-        <div class="grid">
-          <label>Fecha<input id="fecha" type="date" required></label>
-          <label>Hora<input id="hora" type="time" required></label>
-          <label>ORTE de trabajo<input id="orte" required></label>
-          <label>Técnico<input id="tecnico" required></label>
-          <label>Cliente<input id="cliente"></label>
-          <label>Placa o chasis<input id="chasis"></label>
-          <label>Supervisado por<input id="supervisor" required></label>
-        </div>
-
-        <h2>Uso de vestimenta</h2>
-        <div class="grid checks">
-          <label>Zapato<select id="zapato"><option>Sí</option><option>No</option></select></label>
-          <label>Pantalón<select id="pantalon"><option>Sí</option><option>No</option></select></label>
-          <label>Polo<select id="polo"><option>Sí</option><option>No</option></select></label>
-          <label>Casaca<select id="casaca"><option>Sí</option><option>No</option></select></label>
-        </div>
-
-        <h2>Revisión de instalación</h2>
-        <div class="grid checks">
-          <label>ORTE verificada<select id="orteOk"><option>Sí</option><option>No</option></select></label>
-          <label>Puntos de señales<select id="senales"><option>Sí</option><option>No</option><option>No aplica</option></select></label>
-          <label>Camuflaje<select id="camuflaje"><option>Sí</option><option>No</option><option>No aplica</option></select></label>
-          <label>Uso correcto de herramientas<select id="herramientas"><option>Sí</option><option>No</option></select></label>
-        </div>
-
-        <h2>Evidencias fotográficas</h2>
-        <p class="muted">Puedes seleccionar varias imágenes y agregar más antes de guardar.</p>
-        <div class="actions">
-          <label class="filebtn">Tomar / agregar fotos<input id="photos" type="file" accept="image/*" capture="environment" multiple></label>
-          <label class="filebtn">Elegir de galería<input id="gallery" type="file" accept="image/*" multiple></label>
-        </div>
-        <div id="preview" class="photos"></div>
-
-        <h2>Firmas digitales</h2>
-        <div class="grid">
-          <div>
-            <label>Firma del técnico</label>
-            <canvas id="sigTecnico" class="signature"></canvas>
-            <button type="button" class="secondary clearSig" data-canvas="sigTecnico">Limpiar firma</button>
-          </div>
-          <div>
-            <label>Firma del supervisor</label>
-            <canvas id="sigSupervisor" class="signature"></canvas>
-            <button type="button" class="secondary clearSig" data-canvas="sigSupervisor">Limpiar firma</button>
-          </div>
-        </div>
-
-        <label>Recomendaciones y/o observaciones<textarea id="observaciones" rows="4"></textarea></label>
-        <div class="actions">
-          <button type="submit">Guardar registro</button>
-          <button type="button" id="clearForm" class="secondary">Limpiar formulario</button>
-        </div>
-        <p id="saveMsg" class="muted"></p>
-      </form>
-    </section>
-
-    <section id="lista" class="panel tab" hidden>
-      <h1>Registros guardados</h1>
-      <div class="actions">
-        <button id="exportBtn" type="button">Exportar a Excel</button>
-        <button id="refreshBtn" class="secondary" type="button">Actualizar</button>
-      </div>
-      <div id="records"></div>
-    </section>
-
-    <section id="estadisticas" class="panel tab" hidden>
-      <h1>Estadísticas</h1>
-      <div id="stats" class="stats"></div>
-    </section>
-  </section>
+<section id="login" class="panel">
+<h1>Acceso de supervisores</h1><p>Ingresa con tu cuenta autorizada.</p>
+<label>Correo electrónico<input id="email" type="email" autocomplete="username"></label>
+<label>Contraseña<input id="password" type="password" autocomplete="current-password"></label>
+<button id="loginBtn">Ingresar</button><p id="loginMsg" class="muted">Configura Firebase antes del primer acceso.</p>
+</section>
+<section id="app" hidden>
+<nav><button data-tab="registro" class="active">Nuevo registro</button><button data-tab="lista">Registros</button><button data-tab="estadisticas">Estadísticas</button></nav>
+<section id="registro" class="panel tab">
+<h1>Supervisión técnica</h1>
+<form id="recordForm">
+<input id="recordId" type="hidden">
+<div class="grid">
+<label>Fecha<input id="fecha" type="date" required></label>
+<label>Hora<input id="hora" type="time" required></label>
+<label>ORTE de trabajo<input id="orte" required></label>
+<label>Técnico<input id="tecnico" required></label>
+<label>Cliente<input id="cliente"></label>
+<label>Placa o chasis<input id="chasis"></label>
+<label>Supervisado por<input id="supervisor" required></label>
+</div>
+<h2>Uso de vestimenta</h2><div class="grid checks">
+<label>Zapato<select id="zapato"><option>Sí</option><option>No</option></select></label>
+<label>Pantalón<select id="pantalon"><option>Sí</option><option>No</option></select></label>
+<label>Polo<select id="polo"><option>Sí</option><option>No</option></select></label>
+<label>Casaca<select id="casaca"><option>Sí</option><option>No</option></select></label>
+</div>
+<h2>Revisión de instalación</h2><div class="grid checks">
+<label>ORTE verificada<select id="orteOk"><option>Sí</option><option>No</option></select></label>
+<label>Puntos de señales<select id="senales"><option>Sí</option><option>No</option><option>No aplica</option></select></label>
+<label>Camuflaje<select id="camuflaje"><option>Sí</option><option>No</option><option>No aplica</option></select></label>
+<label>Uso correcto de herramientas<select id="herramientas"><option>Sí</option><option>No</option></select></label>
+</div>
+<h2>Evidencias fotográficas</h2>
+<p class="muted">Puedes seleccionar varias imágenes a la vez y agregar más antes de guardar.</p>
+<div class="actions"><label class="filebtn">Tomar / agregar fotos<input id="photos" type="file" accept="image/*" capture="environment" multiple></label><label class="filebtn">Elegir de galería<input id="gallery" type="file" accept="image/*" multiple></label></div>
+<div id="preview" class="photos"></div>
+<h2>Firmas digitales</h2><div class="grid">
+<div><label>Firma del técnico</label><canvas id="sigTecnico" class="signature"></canvas><button type="button" class="secondary clearSig" data-canvas="sigTecnico">Limpiar firma</button></div>
+<div><label>Firma del supervisor</label><canvas id="sigSupervisor" class="signature"></canvas><button type="button" class="secondary clearSig" data-canvas="sigSupervisor">Limpiar firma</button></div>
+</div>
+<label>Recomendaciones y/o observaciones<textarea id="observaciones" rows="4"></textarea></label>
+<div class="actions"><button type="submit">Guardar registro</button><button type="button" id="clearForm" class="secondary">Limpiar formulario</button></div>
+<p id="saveMsg" class="muted"></p>
+</form>
+</section>
+<section id="lista" class="panel tab" hidden><h1>Registros guardados</h1><div class="actions"><button id="exportBtn">Exportar a Excel</button><button id="refreshBtn" class="secondary">Actualizar</button></div><div id="records"></div></section>
+<section id="estadisticas" class="panel tab" hidden><h1>Estadísticas</h1><div id="stats" class="stats"></div></section>
+</section>
 </main>
 <footer>TRACKLINK · Supervisión técnica · 2026</footer>
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script type="module" src="app.js"></script>
-</body>
-</html>
+</body></html>

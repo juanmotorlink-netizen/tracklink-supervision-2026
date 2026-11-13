@@ -1,10 +1,11 @@
-// Reemplaza estos valores por la configuración de tu proyecto Firebase.
-// Firebase Console > Configuración del proyecto > Tus aplicaciones > Aplicación web.
+// Configuración de Firebase para TRACKLINK SUPERVISIÓN 2026
+// Estos identificadores corresponden a la aplicación web registrada en Firebase.
 export const firebaseConfig = {
-  apiKey: "REEMPLAZAR_API_KEY",
-  authDomain: "REEMPLAZAR.firebaseapp.com",
-  projectId: "REEMPLAZAR_PROJECT_ID",
-  storageBucket: "REEMPLAZAR.appspot.com",
-  messagingSenderId: "REEMPLAZAR_SENDER_ID",
-  appId: "REEMPLAZAR_APP_ID"
+  apiKey: "AIzaSyD5Ok74e5WExDh0fggYNS2i_Lffk7RNdu4",
+  authDomain: "tracklink-supervision-2026.firebaseapp.com",
+  projectId: "tracklink-supervision-2026",
+  storageBucket: "tracklink-supervision-2026.firebasestorage.app",
+  messagingSenderId: "101391289977",
+  appId: "1:101391289977:web:23d5aab541f039c2e48ea8",
+  measurementId: "G-1EHHE1DFS0"
 };
