@@ -1,0 +1,30 @@
+TRACKLINK SUPERVISIÓN 2026 — ACTUALIZACIÓN EXCEL E INFORMES
+
+ARCHIVOS DEL PAQUETE
+- app.js: exportación de Excel, estadísticas e informe PDF individual.
+- index.html: estructura de la aplicación.
+- styles.css: estilos actuales.
+- sw.js: actualización de caché para que los dispositivos descarguen la nueva versión.
+- LEEME_EXCEL_INFORMES.txt: estas instrucciones.
+
+FUNCIONES INCLUIDAS
+1. Exportar a Excel con hojas DASHBOARD, REGISTROS, ESTADÍSTICAS e INFORME DE CHEQUEO.
+2. Resumen de supervisiones por mes.
+3. Indicadores por técnico: cantidad de supervisiones, incumplimientos y porcentaje de cumplimiento.
+4. Conteo de respuestas Sí, No y No aplica por criterio de revisión.
+5. Detalle de cada registro: fecha, hora, ORTE, técnico, cliente, placa/chasis, supervisor, vestimenta, instalación, observaciones, nombres y cantidad de fotos, y estado de las firmas.
+6. Botón “Informe PDF” en cada registro. Abre un informe individual con los datos, las fotografías y las firmas disponibles. En la ventana de impresión, elegir “Guardar como PDF” o imprimir.
+7. Al editar un registro se conservan las firmas ya registradas. Las firmas vacías no se guardan como si fueran firmas válidas.
+
+PUBLICACIÓN EN GITHUB
+1. Descomprime este ZIP en tu computadora.
+2. En el repositorio de GitHub, reemplaza los archivos app.js, index.html y sw.js por los de esta carpeta. También puedes subir styles.css para mantener todos los archivos alineados.
+3. NO reemplaces ni elimines firebaseConfig.js. Debes conservar la configuración Firebase que ya funciona en tu proyecto.
+4. Confirma los cambios (Commit changes) en la rama principal.
+5. Espera a que GitHub Pages termine el despliegue.
+6. En el celular, cierra la aplicación instalada. Abre la dirección de la app en Chrome con internet y actualiza la página. Si sigue mostrando la versión anterior, cierra Chrome por completo y vuelve a abrir.
+
+IMPORTANTE
+- La hoja INFORME DE CHEQUEO de Excel presenta un bloque de informe por registro, con los datos y el resumen de evidencias/firmas. Para generar el PDF individual con las imágenes reales de las fotografías y las firmas, usa el botón “Informe PDF” en la lista de registros.
+- Las estadísticas se calculan con los registros que se hayan cargado en el dispositivo desde Firebase.
+- La aplicación sigue usando Firebase Firestore en el plan Spark gratuito. El almacenamiento de fotos está sujeto a los límites y cuotas de Firestore.

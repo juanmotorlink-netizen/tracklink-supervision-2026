@@ -160,11 +160,31 @@ async function syncPending() {
 }
 function getVal(id) { return $(id).value; }
 function signature(id) {
-  const c = $(id);
-  // Reducir el tamaño de la firma sin perder su legibilidad.
+  const c = $(id), source = c.getContext("2d");
+  // No guardar una imagen vacía como si fuera una firma registrada.
+  const pixels = source.getImageData(0, 0, c.width, c.height).data;
+  let hasInk = false;
+  for (let i = 3; i < pixels.length; i += 4) {
+    if (pixels[i] > 0) { hasInk = true; break; }
+  }
+  if (!hasInk) return "";
+  // Fondo blanco para que la firma se vea correctamente al exportar a PDF.
   const out = document.createElement("canvas"); out.width = 600; out.height = 200;
-  out.getContext("2d").drawImage(c, 0, 0, out.width, out.height);
-  return out.toDataURL("image/jpeg", 0.65);
+  const ctx = out.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, out.width, out.height);
+  ctx.drawImage(c, 0, 0, out.width, out.height);
+  return out.toDataURL("image/jpeg", 0.72);
+}
+function restoreSignature(id, dataUrl) {
+  const c = $(id), ctx = c.getContext("2d");
+  ctx.clearRect(0, 0, c.width, c.height);
+  if (!dataUrl) return Promise.resolve();
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => { ctx.drawImage(img, 0, 0, c.width, c.height); resolve(); };
+    img.onerror = resolve;
+    img.src = dataUrl;
+  });
 }
 function setupCanvas(id) {
   const c = $(id), ctx = c.getContext("2d"); let drawing = false;
@@ -225,17 +245,24 @@ function renderRecords() {
     info.innerHTML=`<b>${escapeHtml(r.orte||"Sin ORTE")} · ${escapeHtml(r.tecnico||"")}</b><small>${escapeHtml(r.fecha||"")} · ${escapeHtml(r.cliente||"")} · ${(r.photos||[]).length} foto(s) · ${r.pending?"Pendiente de sincronizar":"Compartido"}</small>`;
     const actions=document.createElement("div");
     const edit=document.createElement("button");edit.className="secondary";edit.textContent="Editar";edit.onclick=()=>editRecord(r);
+    const pdf=document.createElement("button");pdf.className="secondary";pdf.textContent="Informe PDF";pdf.onclick=()=>printCheckReport(r);
     const del=document.createElement("button");del.className="danger";del.textContent="Borrar registro";del.onclick=()=>deleteRecord(r);
-    actions.append(edit,del);el.append(info,actions);$("records").append(el);
+    actions.append(edit,pdf,del);el.append(info,actions);$("records").append(el);
   });
 }
 function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function editRecord(r) {
+async function editRecord(r) {
   const map={fecha:"fecha",hora:"hora",orte:"orte",tecnico:"tecnico",cliente:"cliente",chasis:"chasis",supervisor:"supervisor",zapato:"zapato",pantalon:"pantalon",polo:"polo",casaca:"casaca",orteOk:"orteOk",senales:"senales",camuflaje:"camuflaje",herramientas:"herramientas",observaciones:"observaciones"};
-  Object.entries(map).forEach(([k,id])=>$(id).value=r[k]||"");
+  Object.entries(map).forEach(([k,id])=>$(id).value=r[k]??"");
   $("recordId").value=r.id;
   pendingPhotos=(r.photos||[]).map(p=>p.dataUrl?{name:p.name,dataUrl:p.dataUrl}:p);
-  renderPreview();$("lista").hidden=true;$("registro").hidden=false;document.querySelector('[data-tab="registro"]').click();
+  renderPreview();
+  // Al editar, recuperar ambas firmas para no borrarlas al volver a guardar.
+  await Promise.all([
+    restoreSignature("sigTecnico", r.firmaTecnico),
+    restoreSignature("sigSupervisor", r.firmaSupervisor)
+  ]);
+  $("lista").hidden=true;$("registro").hidden=false;document.querySelector('[data-tab="registro"]').click();
 }
 async function deleteRecord(r) {
   if(!confirm(`¿Seguro que deseas borrar el registro ${r.orte||r.id}? Esta acción se reflejará en todos los dispositivos.`))return;
@@ -256,10 +283,80 @@ function renderStats(){
   $("stats").innerHTML=`<div class="stat"><b>${total}</b>Supervisiones registradas</div><div class="stat"><b>${records.reduce((n,r)=>n+(r.photos||[]).length,0)}</b>Fotografías</div>`+
     Object.entries(byTech).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="stat"><b>${v}</b>${escapeHtml(k)}</div>`).join("");
 }
+function printCheckReport(r) {
+  const esc = escapeHtml;
+  const checks = [
+    ["Zapato", r.zapato], ["Pantalón", r.pantalon], ["Polo", r.polo], ["Casaca", r.casaca],
+    ["ORTE verificada", r.orteOk], ["Puntos de señales", r.senales],
+    ["Camuflaje", r.camuflaje], ["Uso correcto de herramientas", r.herramientas]
+  ];
+  const photos = (r.photos || []).map((p, i) => {
+    const src = p.dataUrl || p.url || "";
+    return src ? `<figure><img src="${src}" alt="Evidencia ${i+1}"><figcaption>${esc(p.name || `Evidencia ${i+1}`)}</figcaption></figure>` : "";
+  }).join("");
+  const signatureImg = (src, label) => src ? `<div class="signature"><img src="${src}" alt="${label}"><span>${label}</span></div>` : `<div class="signature empty"><span>${label}: No registrada</span></div>`;
+  const w = window.open("", "_blank");
+  if (!w) { alert("El navegador bloqueó la ventana del informe. Permite las ventanas emergentes para esta aplicación."); return; }
+  w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe de chequeo - ${esc(r.orte || r.id)}</title>
+  <style>
+  @page{size:A4;margin:14mm}*{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#203448;margin:0}header{background:#102b46;color:#fff;padding:16px 20px;border-bottom:5px solid #1683b5}header strong{font-size:21px;letter-spacing:1px}header span{display:block;font-size:11px;letter-spacing:2px;color:#c7dceb;margin-top:4px}h1{font-size:20px;color:#102b46;margin:18px 0 4px}.sub{color:#667989;margin:0 0 16px}.section{background:#102b46;color:#fff;padding:8px 10px;font-weight:bold;margin:15px 0 8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px}.field{border-bottom:1px solid #d8e1e8;padding:5px 2px;min-height:31px}.field b{display:block;color:#667989;font-size:9px;text-transform:uppercase;margin-bottom:3px}.checks{width:100%;border-collapse:collapse}.checks td,.checks th{border:1px solid #d8e1e8;padding:8px;text-align:left}.checks th{background:#eaf2f8}.yes{color:#187447;font-weight:bold}.no{color:#b42318;font-weight:bold}.photos{display:grid;grid-template-columns:1fr 1fr;gap:10px}.photos figure{margin:0;border:1px solid #d8e1e8;padding:6px;break-inside:avoid}.photos img{width:100%;height:180px;object-fit:contain}.photos figcaption{font-size:9px;color:#667989}.signatures{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:16px}.signature{height:100px;border-bottom:1px solid #526879;display:flex;flex-direction:column;align-items:center;justify-content:end}.signature img{max-width:100%;height:72px;object-fit:contain}.signature span{font-size:10px;margin:5px}.obs{border:1px solid #d8e1e8;padding:10px;min-height:55px;white-space:pre-wrap}.footer{margin-top:20px;color:#82909b;font-size:9px;text-align:center}@media print{button{display:none}}
+  </style></head><body><header><strong>TRACKLINK</strong><span>SUPERVISIÓN TÉCNICA 2026</span></header>
+  <h1>INFORME DE CHEQUEO</h1><p class="sub">Registro individual de supervisión técnica, verificación de vestimenta e instalación.</p>
+  <div class="section">1. DATOS DE LA SUPERVISIÓN</div><div class="grid">
+  ${[["Fecha",r.fecha],["Hora",r.hora],["ORTE de trabajo",r.orte],["Técnico",r.tecnico],["Cliente",r.cliente],["Placa o chasis",r.chasis],["Supervisado por",r.supervisor]].map(([k,v])=>`<div class="field"><b>${k}</b>${esc(v || "—")}</div>`).join("")}
+  </div><div class="section">2. VERIFICACIÓN DE VESTIMENTA E INSTALACIÓN</div>
+  <table class="checks"><thead><tr><th>Ítem evaluado</th><th>Resultado</th></tr></thead><tbody>${checks.map(([k,v])=>`<tr><td>${k}</td><td class="${String(v).toLowerCase()==="no"?"no":"yes"}">${esc(v || "Sin dato")}</td></tr>`).join("")}</tbody></table>
+  <div class="section">3. RECOMENDACIONES Y/O OBSERVACIONES</div><div class="obs">${esc(r.observaciones || "Sin observaciones registradas")}</div>
+  <div class="section">4. EVIDENCIA FOTOGRÁFICA (${(r.photos||[]).length})</div><div class="photos">${photos || "Sin fotografías adjuntas"}</div>
+  <div class="section">5. FIRMAS DIGITALES</div><div class="signatures">${signatureImg(r.firmaTecnico,"Técnico instalador")}${signatureImg(r.firmaSupervisor,"Supervisor")}</div>
+  <div class="footer">TRACKLINK · INFORME DE CHEQUEO · Registro ${esc(r.id)}</div><script>window.onload=()=>{const imgs=[...document.images];Promise.all(imgs.map(i=>i.complete?Promise.resolve():new Promise(res=>{i.onload=res;i.onerror=res}))).then(()=>setTimeout(()=>window.print(),350));};</script></body></html>`);
+  w.document.close();
+}
+
 $("exportBtn").onclick=()=>{
   if(!window.XLSX){alert("No se pudo cargar el módulo Excel. Revisa tu conexión.");return;}
-  const rows=records.map(({id,photos,firmaTecnico,firmaSupervisor,pending,...r})=>({...r,"Cantidad de fotos":(photos||[]).length}));
-  const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Supervisiones");XLSX.writeFile(wb,"TRACKLINK_SUPERVISION_2026.xlsx");
+  if(!records.length){alert("Todavía no hay registros para exportar.");return;}
+  const wb=XLSX.utils.book_new();
+  const navy="102B46", blue="087EAF", pale="EAF2F8", ink="203448", green="DDF2E5", red="FCE4E4", white="FFFFFF", line="D5E0E8";
+  const border={top:{style:"thin",color:{rgb:line}},bottom:{style:"thin",color:{rgb:line}},left:{style:"thin",color:{rgb:line}},right:{style:"thin",color:{rgb:line}}};
+  const headerStyle={fill:{fgColor:{rgb:blue}},font:{bold:true,color:{rgb:white}},alignment:{horizontal:"center",vertical:"center",wrapText:true},border};
+  function styleRange(ws,range,style){const rg=XLSX.utils.decode_range(range);for(let R=rg.s.r;R<=rg.e.r;R++)for(let C=rg.s.c;C<=rg.e.c;C++){const a=XLSX.utils.encode_cell({r:R,c:C});if(!ws[a])ws[a]={t:"s",v:""};ws[a].s={...(ws[a].s||{}),...style};}}
+  function merge(ws,range){ws["!merges"]=(ws["!merges"]||[]).concat([XLSX.utils.decode_range(range)]);}
+  function title(ws,range,text){merge(ws,range);const a=range.split(":")[0];ws[a]={t:"s",v:text,s:{fill:{fgColor:{rgb:navy}},font:{bold:true,color:{rgb:white},sz:17},alignment:{horizontal:"center",vertical:"center"}}};styleRange(ws,range,{fill:{fgColor:{rgb:navy}},font:{bold:true,color:{rgb:white},sz:17},alignment:{horizontal:"center",vertical:"center"}});ws["!rows"]=[{hpt:32}];}
+  const checks=[["Zapato","zapato"],["Pantalón","pantalon"],["Polo","polo"],["Casaca","casaca"],["ORTE verificada","orteOk"],["Puntos de señales","senales"],["Camuflaje","camuflaje"],["Uso correcto de herramientas","herramientas"]];
+  const techMap={}, monthMap={}, errorMap={}; let yes=0,no=0,na=0,photos=0;
+  records.forEach(r=>{const t=r.tecnico||"Sin técnico";techMap[t]??={total:0,errors:0,yes:0,no:0};techMap[t].total++;
+    const m=(r.fecha||"Sin fecha").slice(0,7);monthMap[m]=(monthMap[m]||0)+1;photos+=(r.photos||[]).length;
+    checks.forEach(([label,key])=>{const v=String(r[key]??"").trim().toLowerCase();errorMap[label]??={yes:0,no:0,na:0};if(v==="sí"||v==="si"){yes++;techMap[t].yes++;errorMap[label].yes++;}else if(v==="no"){no++;techMap[t].no++;techMap[t].errors++;errorMap[label].no++;}else if(v==="no aplica"){na++;errorMap[label].na++;}});
+  });
+  const techs=Object.keys(techMap).length, applicable=yes+no, compliance=applicable?yes/applicable:0;
+  // DASHBOARD
+  const dash=XLSX.utils.aoa_to_sheet([]);title(dash,"A1:H1","TRACKLINK | SUPERVISIÓN TÉCNICA 2026");merge(dash,"A2:H2");dash.A2={t:"s",v:`DASHBOARD GERENCIAL · Actualizado ${new Date().toLocaleString("es-PE")}`,s:{font:{italic:true,color:{rgb:"647789"}},alignment:{horizontal:"center"}}};
+  const cards=[["SUPERVISIONES",records.length],["TÉCNICOS",techs],["CUMPLIMIENTO",compliance],["INCUMPLIMIENTOS",no]];
+  cards.forEach((c,i)=>{const col=i*2;const a=XLSX.utils.encode_cell({r:3,c:col}),b=XLSX.utils.encode_cell({r:3,c:col+1}),v=XLSX.utils.encode_cell({r:4,c:col});merge(dash,`${a}:${b}`);dash[a]={t:"s",v:c[0]};merge(dash,`${v}:${XLSX.utils.encode_cell({r:5,c:col+1})}`);dash[v]={t:"n",v:c[1]};styleRange(dash,`${a}:${b}`,{fill:{fgColor:{rgb:navy}},font:{bold:true,color:{rgb:white},sz:9},alignment:{horizontal:"center",vertical:"center",wrapText:true},border});styleRange(dash,`${v}:${XLSX.utils.encode_cell({r:5,c:col+1})}`,{fill:{fgColor:{rgb:i===3?red:(i===2?green:pale)}},font:{bold:true,color:{rgb:i===3?"B42318":blue},sz:20},alignment:{horizontal:"center",vertical:"center"},border});if(i===2)dash[v].z="0.0%";});
+  const monthRows=[["Mes","Supervisiones"] ,...Object.entries(monthMap).sort((a,b)=>a[0].localeCompare(b[0])).map(x=>x)];
+  const techRows=[["Técnico","Supervisiones","Incumplimientos","Cumplimiento"],...Object.entries(techMap).sort((a,b)=>b[1].total-a[1].total).map(([n,v])=>[n,v.total,v.errors,(v.yes+v.no)?v.yes/(v.yes+v.no):0])];
+  merge(dash,"A8:B8");dash.A8={t:"s",v:"SUPERVISIONES POR MES"};styleRange(dash,"A8:B8",{fill:{fgColor:{rgb:navy}},font:{bold:true,color:{rgb:white}}});
+  XLSX.utils.sheet_add_aoa(dash,monthRows,{origin:"A9"});styleRange(dash,"A9:B9",headerStyle);if(monthRows.length>1)styleRange(dash,`A10:B${8+monthRows.length}`,{border,alignment:{vertical:"center"},font:{color:{rgb:ink}}});
+  merge(dash,"D8:G8");dash.D8={t:"s",v:"DESEMPEÑO POR TÉCNICO"};styleRange(dash,"D8:G8",{fill:{fgColor:{rgb:navy}},font:{bold:true,color:{rgb:white}}});
+  XLSX.utils.sheet_add_aoa(dash,techRows,{origin:"D9"});styleRange(dash,"D9:G9",headerStyle);if(techRows.length>1)styleRange(dash,`D10:G${8+techRows.length}`,{border,alignment:{vertical:"center"},font:{color:{rgb:ink}}});for(let i=1;i<techRows.length;i++)if(dash[`G${9+i}`])dash[`G${9+i}`].z="0.0%";
+  const erow=Math.max(12,10+monthRows.length,10+techRows.length);merge(dash,`A${erow}:D${erow}`);dash[`A${erow}`]={t:"s",v:"INCUMPLIMIENTOS POR CRITERIO"};styleRange(dash,`A${erow}:D${erow}`,{fill:{fgColor:{rgb:navy}},font:{bold:true,color:{rgb:white}}});
+  const errRows=[["Criterio","Sí cumple","No cumple","No aplica"],...checks.map(([label])=>[label,errorMap[label].yes,errorMap[label].no,errorMap[label].na])];XLSX.utils.sheet_add_aoa(dash,errRows,{origin:`A${erow+1}`});styleRange(dash,`A${erow+1}:D${erow+1}`,headerStyle);styleRange(dash,`A${erow+2}:D${erow+errRows.length}`,{border,alignment:{vertical:"center"},font:{color:{rgb:ink}}});
+  dash["!cols"]=[{wch:28},{wch:15},{wch:18},{wch:26},{wch:15},{wch:17},{wch:16},{wch:15}];dash["!freeze"]={xSplit:0,ySplit:3};XLSX.utils.book_append_sheet(wb,dash,"DASHBOARD");
+  // REGISTROS
+  const headers=["Fecha","Hora","ORTE","Técnico","Cliente","Placa o chasis","Supervisado por",...checks.map(x=>x[0]),"Observaciones","Cantidad de fotos","Fotos (nombres)","Firma técnico","Firma supervisor","ID del registro"];
+  const rows=records.slice().sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||(a.hora||"").localeCompare(b.hora||"")).map(r=>[r.fecha||"",r.hora||"",r.orte||"",r.tecnico||"",r.cliente||"",r.chasis||"",r.supervisor||"",...checks.map(x=>r[x[1]]||""),r.observaciones||"",(r.photos||[]).length,(r.photos||[]).map(p=>p.name||"Foto").join("; "),r.firmaTecnico?"Registrada":"No registrada",r.firmaSupervisor?"Registrada":"No registrada",r.id]);
+  const detail=XLSX.utils.aoa_to_sheet([headers,...rows]);styleRange(detail,`A1:${XLSX.utils.encode_col(headers.length-1)}1`,headerStyle);if(rows.length)styleRange(detail,`A2:${XLSX.utils.encode_col(headers.length-1)}${rows.length+1}`,{border,alignment:{vertical:"top",wrapText:true},font:{color:{rgb:ink}}});detail["!cols"]=[12,9,16,23,23,20,22,11,12,10,11,16,18,14,22,38,15,32,18,20,38].map(wch=>({wch}));detail["!autofilter"]={ref:`A1:${XLSX.utils.encode_col(headers.length-1)}${rows.length+1}`};detail["!freeze"]={xSplit:0,ySplit:1};XLSX.utils.book_append_sheet(wb,detail,"REGISTROS");
+  // ESTADÍSTICAS
+  const stats=XLSX.utils.aoa_to_sheet([["ESTADÍSTICAS DE SUPERVISIÓN 2026"],["Indicador","Resultado"],["Total de supervisiones",records.length],["Técnicos supervisados",techs],["Fotografías registradas",photos],["Ítems conformes",yes],["Incumplimientos detectados",no],["No aplica",na],["Cumplimiento general",compliance],[],["TÉCNICO","SUPERVISIONES","INCUMPLIMIENTOS","CUMPLIMIENTO"],...techRows.slice(1),[],["CRITERIO","SÍ","NO","NO APLICA"],...errRows.slice(1)]);
+  styleRange(stats,"A1:D1",{fill:{fgColor:{rgb:navy}},font:{bold:true,color:{rgb:white},sz:16}});styleRange(stats,"A2:B2",headerStyle);styleRange(stats,"A12:D12",headerStyle);styleRange(stats,`A${13}:D${11+techRows.length}`,{border,alignment:{vertical:"center"},font:{color:{rgb:ink}}});const errHeaderRow=14+techRows.length;styleRange(stats,`A${errHeaderRow}:D${errHeaderRow}`,headerStyle);styleRange(stats,`A${errHeaderRow+1}:D${errHeaderRow+checks.length}`,{border,alignment:{vertical:"center"},font:{color:{rgb:ink}}});stats["!cols"]=[{wch:34},{wch:18},{wch:20},{wch:20}];XLSX.utils.book_append_sheet(wb,stats,"ESTADÍSTICAS");
+  // INFORME DE CHEQUEO: un bloque por cada registro para consulta e impresión desde Excel.
+  const report=[];const sorted=records.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")||(b.hora||"").localeCompare(a.hora||""));
+  sorted.forEach((r,i)=>{if(i)report.push([],[]);report.push(["TRACKLINK | SUPERVISIÓN TÉCNICA 2026"],["INFORME DE CHEQUEO"],[`Registro: ${r.id}`],["DATOS DE LA SUPERVISIÓN","VALOR","",""],["Fecha",r.fecha||"","Hora",r.hora||""],["ORTE",r.orte||"","Técnico",r.tecnico||""],["Cliente",r.cliente||"","Placa o chasis",r.chasis||""],["Supervisado por",r.supervisor||""],[],["VERIFICACIÓN","RESULTADO"],...checks.map(([label,key])=>[label,r[key]||"Sin dato"]),[],["RECOMENDACIONES Y/O OBSERVACIONES"],[r.observaciones||"Sin observaciones registradas"],[],["EVIDENCIAS FOTOGRÁFICAS"],["Cantidad",(r.photos||[]).length],["Archivos",(r.photos||[]).map(p=>p.name||"Foto").join("; ")||"Sin fotografías"],[],["FIRMAS DIGITALES"],["Técnico instalador",r.firmaTecnico?"Registrada":"No registrada"],["Supervisor",r.firmaSupervisor?"Registrada":"No registrada"]);});
+  const reportWs=XLSX.utils.aoa_to_sheet(report);const lastCol="D";styleRange(reportWs,`A1:${lastCol}${Math.max(1,report.length)}`,{border,alignment:{vertical:"top",wrapText:true},font:{color:{rgb:ink}}});
+  for(let i=0;i<report.length;i++){const v=report[i]?.[0];if(v==="TRACKLINK | SUPERVISIÓN TÉCNICA 2026"||v==="INFORME DE CHEQUEO"){merge(reportWs,`A${i+1}:D${i+1}`);styleRange(reportWs,`A${i+1}:D${i+1}`,{fill:{fgColor:{rgb:navy}},font:{bold:true,color:{rgb:white},sz:v.startsWith("TRACKLINK")?15:13},alignment:{horizontal:"center"}});}else if(["DATOS DE LA SUPERVISIÓN","VERIFICACIÓN","RECOMENDACIONES Y/O OBSERVACIONES","EVIDENCIAS FOTOGRÁFICAS","FIRMAS DIGITALES"].includes(v)){merge(reportWs,`A${i+1}:D${i+1}`);styleRange(reportWs,`A${i+1}:D${i+1}`,{fill:{fgColor:{rgb:blue}},font:{bold:true,color:{rgb:white}}});}}
+  reportWs["!cols"]=[{wch:28},{wch:32},{wch:22},{wch:32}];reportWs["!pageSetup"]={orientation:"portrait",paperSize:9,fitToWidth:1,fitToHeight:0};reportWs["!margins"]={left:0.3,right:0.3,top:0.5,bottom:0.5,header:0.2,footer:0.2};XLSX.utils.book_append_sheet(wb,reportWs,"INFORME DE CHEQUEO");
+  XLSX.writeFile(wb,"TRACKLINK_SUPERVISION_2026_PROFESIONAL.xlsx",{bookType:"xlsx",compression:true});
 };
 $("refreshBtn").onclick=refresh;
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("active",x===b));document.querySelectorAll(".tab").forEach(x=>x.hidden=x.id!==b.dataset.tab);if(b.dataset.tab==="lista"||b.dataset.tab==="estadisticas")refresh();});
