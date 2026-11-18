@@ -274,7 +274,7 @@ async function printCheckReport(r) {
   }).join("");
   const signatureImg = (src, label) => src ? `<div class="signature"><img src="${src}" alt="${label}"><span>${label}</span></div>` : `<div class="signature empty"><span>${label}: No registrada</span></div>`;
   const ordered = [...records].sort((a,b)=>String(a.createdAt||a.fecha||"").localeCompare(String(b.createdAt||b.fecha||"")) || String(a.id).localeCompare(String(b.id)));
-  const sequence = Math.max(1, ordered.findIndex(x=>x.id===r.id)+1);
+ container.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;z-index:-1";
   const filename = `INFORME_CHEQUEO_${String(sequence).padStart(3,"0")}.pdf`;
   const container = document.createElement("div");
   container.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;z-index:-1";
