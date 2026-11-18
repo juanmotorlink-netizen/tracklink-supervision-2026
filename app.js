@@ -164,7 +164,7 @@ function signature(id) {
   // Reducir el tamaño de la firma sin perder su legibilidad.
   const out = document.createElement("canvas"); out.width = 600; out.height = 200;
   out.getContext("2d").drawImage(c, 0, 0, out.width, out.height);
-  return out.toDataURL("image/jpeg", 0.65);
+  return out.toDataURL("image/png");
 }
 function setupCanvas(id) {
   const c = $(id), ctx = c.getContext("2d"); let drawing = false;
@@ -287,6 +287,41 @@ async function printCheckReport(r) {
     const src = p.dataUrl || p.url || "";
     return src ? `<figure><img src="${src}" alt="Evidencia ${i + 1}"><figcaption>${esc(p.name || `Evidencia ${i + 1}`)}</figcaption></figure>` : "";
   }).join("");
+  // Convierte firmas antiguas guardadas como JPEG (con fondo negro) a PNG transparente.
+  async function signatureForPdf(src) {
+    if (!src) return "";
+    if (src.startsWith("data:image/png")) return src;
+    return await new Promise(resolve => {
+      const image = new Image();
+      image.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = image.naturalWidth || 600;
+          canvas.height = image.naturalHeight || 200;
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+          const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const pixels = frame.data;
+          for (let i = 0; i < pixels.length; i += 4) {
+            const darkest = Math.max(pixels[i], pixels[i + 1], pixels[i + 2]);
+            if (darkest < 28) pixels[i + 3] = 0;
+            else if (darkest < 48) pixels[i + 3] = Math.round((darkest - 28) / 20 * 255);
+          }
+          ctx.putImageData(frame, 0, 0);
+          resolve(canvas.toDataURL("image/png"));
+        } catch (error) {
+          console.warn("No se pudo limpiar el fondo de una firma:", error);
+          resolve(src);
+        }
+      };
+      image.onerror = () => resolve(src);
+      image.src = src;
+    });
+  }
+  const [techSignature, supervisorSignature] = await Promise.all([
+    signatureForPdf(r.firmaTecnico),
+    signatureForPdf(r.firmaSupervisor)
+  ]);
   const signatureImg = (src, label) => src
     ? `<div class="signature"><img src="${src}" alt="${esc(label)}"><span>${esc(label)}</span></div>`
     : `<div class="signature empty"><span>${esc(label)}: No registrada</span></div>`;
@@ -340,7 +375,7 @@ async function printCheckReport(r) {
       <div class="section">4. EVIDENCIA FOTOGRÁFICA (${(r.photos || []).length})</div>
       <div class="photos">${photos || "Sin fotografías adjuntas"}</div>
       <div class="section">5. FIRMAS DIGITALES</div>
-      <div class="signatures">${signatureImg(r.firmaTecnico,"Técnico instalador")}${signatureImg(r.firmaSupervisor,"Supervisor")}</div>
+      <div class="signatures">${signatureImg(techSignature,"Técnico instalador")}${signatureImg(supervisorSignature,"Supervisor")}</div>
       <div class="footer">TRACKLINK · INFORME DE CHEQUEO · Registro ${esc(r.id)}</div>
     </article>`;
 
@@ -430,5 +465,7 @@ if(auth) onAuthStateChanged(auth,async u=>{
 });
 window.addEventListener("online",async()=>{if(user){startLiveSync();await syncPending();}});
 window.addEventListener("offline",stopLiveSync);
+resetForm();
+if("serviceWorker"in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
 resetForm();
 if("serviceWorker"in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
