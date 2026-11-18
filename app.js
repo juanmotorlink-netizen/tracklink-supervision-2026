@@ -288,13 +288,15 @@ async function printCheckReport(r) {
     const label = `Fotografía ${String(i + 1).padStart(2, "0")}`;
     return src ? `<figure><img src="${src}" alt="${label}"><figcaption>${label}${p.name ? ` · ${esc(p.name)}` : ""}</figcaption></figure>` : "";
   }).filter(Boolean);
-  // Agrupa las fotos de dos en dos para que la segunda nunca salte sola
-  // a la fila siguiente y cada pareja se mantenga junta al paginar el PDF.
+  // Tabla con dos celdas por fila: es más estable al convertir con html2canvas/html2pdf
+  // que CSS Grid, y conserva estrictamente el orden izquierda-derecha.
   const photoRows = [];
   for (let i = 0; i < photoItems.length; i += 2) {
-    photoRows.push(`<div class="photo-row">${photoItems[i]}${photoItems[i + 1] || ""}</div>`);
+    photoRows.push(`<tr><td>${photoItems[i]}</td><td>${photoItems[i + 1] || ""}</td></tr>`);
   }
-  const photos = photoRows.join("");
+  const photos = photoRows.length
+    ? `<table class="photo-table"><tbody>${photoRows.join("")}</tbody></table>`
+    : "Sin fotografías adjuntas";
   // Convierte firmas antiguas guardadas como JPEG (con fondo negro) a PNG transparente.
   async function signatureForPdf(src) {
     if (!src) return "";
@@ -355,11 +357,13 @@ async function printCheckReport(r) {
       #tracklink-pdf-report .checks th { background:#eaf2f8; }
       #tracklink-pdf-report .yes { color:#187447; font-weight:bold; }
       #tracklink-pdf-report .no { color:#b42318; font-weight:bold; }
-      /* Cada fila contiene dos fotografías fijas: primera izquierda, segunda derecha.
-         Se evita que html2pdf divida una pareja y deje huecos entre páginas. */
+      /* Tabla HTML: primera foto siempre en la celda izquierda, segunda en la derecha.
+         Evita los saltos de columna irregulares que puede producir CSS Grid en el PDF. */
       #tracklink-pdf-report .photos { display:block; width:100%; }
-      #tracklink-pdf-report .photo-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; width:100%; margin:0 0 10px; break-inside:avoid; page-break-inside:avoid; }
-      #tracklink-pdf-report .photos figure { min-width:0; width:100%; margin:0; border:1px solid #d8e1e8; padding:6px; break-inside:avoid; page-break-inside:avoid; }
+      #tracklink-pdf-report .photo-table { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0 10px; }
+      #tracklink-pdf-report .photo-table tr { break-inside:avoid; page-break-inside:avoid; }
+      #tracklink-pdf-report .photo-table td { width:50%; vertical-align:top; padding:0 5px; }
+      #tracklink-pdf-report .photos figure { display:block; width:100%; min-width:0; margin:0; border:1px solid #d8e1e8; padding:6px; break-inside:avoid; page-break-inside:avoid; }
       #tracklink-pdf-report .photos img { display:block; width:100%; height:180px; object-fit:contain; }
       #tracklink-pdf-report .photos figcaption { font-size:9px; color:#667989; overflow-wrap:anywhere; }
       #tracklink-pdf-report .signatures { display:grid; grid-template-columns:1fr 1fr; gap:25px; margin-top:16px; }
