@@ -273,7 +273,7 @@ async function printCheckReport(r) {
     return src ? `<figure><img src="${src}" alt="Evidencia ${i+1}"><figcaption>${esc(p.name || `Evidencia ${i+1}`)}</figcaption></figure>` : "";
   }).join("");
   const signatureImg = (src, label) => src ? `<div class="signature"><img src="${src}" alt="${label}"><span>${label}</span></div>` : `<div class="signature empty"><span>${label}: No registrada</span></div>`;
-  const ordered = [...records].sort((a,b)=>String(a.createdAt||a.fecha||"").localeCompare(String(b.createdAt||b.fecha||"")) || String(a.id).localeCompare(String(b.id)));
+  container.style.cssText = "position:absolute;left:0;top:0;width:794px;background:#fff;z-index:9999;pointer-events:none";
  container.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;z-index:-1";
   const filename = `INFORME_CHEQUEO_${String(sequence).padStart(3,"0")}.pdf`;
   const container = document.createElement("div");
