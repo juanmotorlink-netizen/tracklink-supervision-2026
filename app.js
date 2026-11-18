@@ -283,11 +283,18 @@ async function printCheckReport(r) {
     ["Puntos de señales", r.senales], ["Camuflaje", r.camuflaje],
     ["Uso correcto de herramientas", r.herramientas]
   ];
-  const photos = (r.photos || []).map((p, i) => {
+  const photoItems = (r.photos || []).map((p, i) => {
     const src = p.dataUrl || p.url || "";
     const label = `Fotografía ${String(i + 1).padStart(2, "0")}`;
     return src ? `<figure><img src="${src}" alt="${label}"><figcaption>${label}${p.name ? ` · ${esc(p.name)}` : ""}</figcaption></figure>` : "";
-  }).join("");
+  }).filter(Boolean);
+  // Agrupa las fotos de dos en dos para que la segunda nunca salte sola
+  // a la fila siguiente y cada pareja se mantenga junta al paginar el PDF.
+  const photoRows = [];
+  for (let i = 0; i < photoItems.length; i += 2) {
+    photoRows.push(`<div class="photo-row">${photoItems[i]}${photoItems[i + 1] || ""}</div>`);
+  }
+  const photos = photoRows.join("");
   // Convierte firmas antiguas guardadas como JPEG (con fondo negro) a PNG transparente.
   async function signatureForPdf(src) {
     if (!src) return "";
@@ -348,10 +355,11 @@ async function printCheckReport(r) {
       #tracklink-pdf-report .checks th { background:#eaf2f8; }
       #tracklink-pdf-report .yes { color:#187447; font-weight:bold; }
       #tracklink-pdf-report .no { color:#b42318; font-weight:bold; }
-      /* Flexbox evita que html2canvas deje vacía la primera columna: la primera foto
-         siempre empieza a la izquierda y las siguientes continúan en orden. */
-      #tracklink-pdf-report .photos { display:flex; flex-wrap:wrap; justify-content:flex-start; align-items:flex-start; gap:10px; width:100%; }
-      #tracklink-pdf-report .photos figure { flex:0 0 calc(50% - 5px); width:calc(50% - 5px); min-width:0; margin:0; border:1px solid #d8e1e8; padding:6px; break-inside:avoid; page-break-inside:avoid; }
+      /* Cada fila contiene dos fotografías fijas: primera izquierda, segunda derecha.
+         Se evita que html2pdf divida una pareja y deje huecos entre páginas. */
+      #tracklink-pdf-report .photos { display:block; width:100%; }
+      #tracklink-pdf-report .photo-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; width:100%; margin:0 0 10px; break-inside:avoid; page-break-inside:avoid; }
+      #tracklink-pdf-report .photos figure { min-width:0; width:100%; margin:0; border:1px solid #d8e1e8; padding:6px; break-inside:avoid; page-break-inside:avoid; }
       #tracklink-pdf-report .photos img { display:block; width:100%; height:180px; object-fit:contain; }
       #tracklink-pdf-report .photos figcaption { font-size:9px; color:#667989; overflow-wrap:anywhere; }
       #tracklink-pdf-report .signatures { display:grid; grid-template-columns:1fr 1fr; gap:25px; margin-top:16px; }
