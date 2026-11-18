@@ -285,7 +285,8 @@ async function printCheckReport(r) {
   ];
   const photos = (r.photos || []).map((p, i) => {
     const src = p.dataUrl || p.url || "";
-    return src ? `<figure><img src="${src}" alt="Evidencia ${i + 1}"><figcaption>${esc(p.name || `Evidencia ${i + 1}`)}</figcaption></figure>` : "";
+    const label = `Fotografía ${String(i + 1).padStart(2, "0")}`;
+    return src ? `<figure><img src="${src}" alt="${label}"><figcaption>${label}${p.name ? ` · ${esc(p.name)}` : ""}</figcaption></figure>` : "";
   }).join("");
   // Convierte firmas antiguas guardadas como JPEG (con fondo negro) a PNG transparente.
   async function signatureForPdf(src) {
@@ -347,10 +348,12 @@ async function printCheckReport(r) {
       #tracklink-pdf-report .checks th { background:#eaf2f8; }
       #tracklink-pdf-report .yes { color:#187447; font-weight:bold; }
       #tracklink-pdf-report .no { color:#b42318; font-weight:bold; }
-      #tracklink-pdf-report .photos { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-      #tracklink-pdf-report .photos figure { margin:0; border:1px solid #d8e1e8; padding:6px; break-inside:avoid; page-break-inside:avoid; }
+      /* Flexbox evita que html2canvas deje vacía la primera columna: la primera foto
+         siempre empieza a la izquierda y las siguientes continúan en orden. */
+      #tracklink-pdf-report .photos { display:flex; flex-wrap:wrap; justify-content:flex-start; align-items:flex-start; gap:10px; width:100%; }
+      #tracklink-pdf-report .photos figure { flex:0 0 calc(50% - 5px); width:calc(50% - 5px); min-width:0; margin:0; border:1px solid #d8e1e8; padding:6px; break-inside:avoid; page-break-inside:avoid; }
       #tracklink-pdf-report .photos img { display:block; width:100%; height:180px; object-fit:contain; }
-      #tracklink-pdf-report .photos figcaption { font-size:9px; color:#667989; }
+      #tracklink-pdf-report .photos figcaption { font-size:9px; color:#667989; overflow-wrap:anywhere; }
       #tracklink-pdf-report .signatures { display:grid; grid-template-columns:1fr 1fr; gap:25px; margin-top:16px; }
       #tracklink-pdf-report .signature { height:100px; border-bottom:1px solid #526879; display:flex; flex-direction:column; align-items:center; justify-content:end; }
       #tracklink-pdf-report .signature img { max-width:100%; height:72px; object-fit:contain; }
@@ -465,7 +468,5 @@ if(auth) onAuthStateChanged(auth,async u=>{
 });
 window.addEventListener("online",async()=>{if(user){startLiveSync();await syncPending();}});
 window.addEventListener("offline",stopLiveSync);
-resetForm();
-if("serviceWorker"in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
 resetForm();
 if("serviceWorker"in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
