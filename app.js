@@ -258,51 +258,114 @@ function renderStats(){
     Object.entries(byTech).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="stat"><b>${v}</b>${escapeHtml(k)}</div>`).join("");
 }
 async function printCheckReport(r) {
-  const esc = escapeHtml;
+  if (!r || !r.id) {
+    alert("No se encontró el registro seleccionado. Actualiza la lista e inténtalo nuevamente.");
+    return;
+  }
   if (!window.html2pdf) {
     alert("No se pudo cargar el generador de PDF. Verifica tu conexión e inténtalo nuevamente.");
     return;
   }
+
+  // Número correlativo según el orden de creación de los registros disponibles.
+  const ordered = [...records].sort((a, b) =>
+    String(a.createdAt || a.fecha || "").localeCompare(String(b.createdAt || b.fecha || "")) ||
+    String(a.id).localeCompare(String(b.id))
+  );
+  let sequence = ordered.findIndex(item => String(item.id) === String(r.id)) + 1;
+  if (sequence < 1) sequence = ordered.length + 1;
+  const filename = `INFORME_CHEQUEO_${String(sequence).padStart(3, "0")}.pdf`;
+
+  const esc = escapeHtml;
   const checks = [
-    ["Zapato", r.zapato], ["Pantalón", r.pantalon], ["Polo", r.polo], ["Casaca", r.casaca],
-    ["ORTE verificada", r.orteOk], ["Puntos de señales", r.senales],
-    ["Camuflaje", r.camuflaje], ["Uso correcto de herramientas", r.herramientas]
+    ["Zapato", r.zapato], ["Pantalón", r.pantalon], ["Polo", r.polo],
+    ["Casaca", r.casaca], ["ORTE verificada", r.orteOk],
+    ["Puntos de señales", r.senales], ["Camuflaje", r.camuflaje],
+    ["Uso correcto de herramientas", r.herramientas]
   ];
   const photos = (r.photos || []).map((p, i) => {
     const src = p.dataUrl || p.url || "";
-    return src ? `<figure><img src="${src}" alt="Evidencia ${i+1}"><figcaption>${esc(p.name || `Evidencia ${i+1}`)}</figcaption></figure>` : "";
+    return src ? `<figure><img src="${src}" alt="Evidencia ${i + 1}"><figcaption>${esc(p.name || `Evidencia ${i + 1}`)}</figcaption></figure>` : "";
   }).join("");
-  const signatureImg = (src, label) => src ? `<div class="signature"><img src="${src}" alt="${label}"><span>${label}</span></div>` : `<div class="signature empty"><span>${label}: No registrada</span></div>`;
-  
-  const filename = `INFORME_CHEQUEO_${String(sequence).padStart(3,"0")}.pdf`;
+  const signatureImg = (src, label) => src
+    ? `<div class="signature"><img src="${src}" alt="${esc(label)}"><span>${esc(label)}</span></div>`
+    : `<div class="signature empty"><span>${esc(label)}: No registrada</span></div>`;
+
   const container = document.createElement("div");
-  container.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;z-index:-1";
-  container.style.cssText = "position:fixed;left:0;top:0;width:794px;background:#fff;z-index:9999";
-  *{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#203448;margin:0}header{background:#102b46;color:#fff;padding:16px 20px;border-bottom:5px solid #1683b5}header strong{font-size:21px;letter-spacing:1px}header span{display:block;font-size:11px;letter-spacing:2px;color:#c7dceb;margin-top:4px}h1{font-size:20px;color:#102b46;margin:18px 0 4px}.sub{color:#667989;margin:0 0 16px}.section{background:#102b46;color:#fff;padding:8px 10px;font-weight:bold;margin:15px 0 8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px}.field{border-bottom:1px solid #d8e1e8;padding:5px 2px;min-height:31px}.field b{display:block;color:#667989;font-size:9px;text-transform:uppercase;margin-bottom:3px}.checks{width:100%;border-collapse:collapse}.checks td,.checks th{border:1px solid #d8e1e8;padding:8px;text-align:left}.checks th{background:#eaf2f8}.yes{color:#187447;font-weight:bold}.no{color:#b42318;font-weight:bold}.photos{display:grid;grid-template-columns:1fr 1fr;gap:10px}.photos figure{margin:0;border:1px solid #d8e1e8;padding:6px;break-inside:avoid;page-break-inside:avoid}.photos img{width:100%;height:180px;object-fit:contain}.photos figcaption{font-size:9px;color:#667989}.signatures{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:16px}.signature{height:100px;border-bottom:1px solid #526879;display:flex;flex-direction:column;align-items:center;justify-content:end}.signature img{max-width:100%;height:72px;object-fit:contain}.signature span{font-size:10px;margin:5px}.obs{border:1px solid #d8e1e8;padding:10px;min-height:55px;white-space:pre-wrap}.footer{margin-top:20px;color:#82909b;font-size:9px;text-align:center}</style>
-  <header><strong>TRACKLINK</strong><span>SUPERVISIÓN TÉCNICA 2026</span></header>
-  <h1>INFORME DE CHEQUEO</h1><p class="sub">Registro individual de supervisión técnica, verificación de vestimenta e instalación.</p>
-  <div class="section">1. DATOS DE LA SUPERVISIÓN</div><div class="grid">
-  ${[["Fecha",r.fecha],["Hora",r.hora],["ORTE de trabajo",r.orte],["Técnico",r.tecnico],["Cliente",r.cliente],["Placa o chasis",r.chasis],["Supervisado por",r.supervisor]].map(([k,v])=>`<div class="field"><b>${k}</b>${esc(v || "—")}</div>`).join("")}
-  </div><div class="section">2. VERIFICACIÓN DE VESTIMENTA E INSTALACIÓN</div>
-  <table class="checks"><thead><tr><th>Ítem evaluado</th><th>Resultado</th></tr></thead><tbody>${checks.map(([k,v])=>`<tr><td>${k}</td><td class="${String(v).toLowerCase()==="no"?"no":"yes"}">${esc(v || "Sin dato")}</td></tr>`).join("")}</tbody></table>
-  <div class="section">3. RECOMENDACIONES Y/O OBSERVACIONES</div><div class="obs">${esc(r.observaciones || "Sin observaciones registradas")}</div>
-  <div class="section">4. EVIDENCIA FOTOGRÁFICA (${(r.photos||[]).length})</div><div class="photos">${photos || "Sin fotografías adjuntas"}</div>
-  <div class="section">5. FIRMAS DIGITALES</div><div class="signatures">${signatureImg(r.firmaTecnico,"Técnico instalador")}${signatureImg(r.firmaSupervisor,"Supervisor")}</div>
-  <div class="footer">TRACKLINK · INFORME DE CHEQUEO · Registro ${esc(r.id)}</div>`;
+  container.setAttribute("aria-hidden", "true");
+  container.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;color:#203448;z-index:-1;";
+  container.innerHTML = `
+    <style>
+      #tracklink-pdf-report, #tracklink-pdf-report * { box-sizing:border-box; }
+      #tracklink-pdf-report { width:794px; padding:24px; background:#fff; color:#203448; font:12px Arial,sans-serif; }
+      #tracklink-pdf-report header { background:#102b46; color:#fff; padding:16px 20px; border-bottom:5px solid #1683b5; }
+      #tracklink-pdf-report header strong { font-size:21px; letter-spacing:1px; }
+      #tracklink-pdf-report header span { display:block; font-size:11px; letter-spacing:2px; color:#c7dceb; margin-top:4px; }
+      #tracklink-pdf-report h1 { font-size:20px; color:#102b46; margin:18px 0 4px; }
+      #tracklink-pdf-report .sub { color:#667989; margin:0 0 16px; }
+      #tracklink-pdf-report .section { background:#102b46; color:#fff; padding:8px 10px; font-weight:bold; margin:15px 0 8px; }
+      #tracklink-pdf-report .grid { display:grid; grid-template-columns:1fr 1fr; gap:7px 12px; }
+      #tracklink-pdf-report .field { border-bottom:1px solid #d8e1e8; padding:5px 2px; min-height:31px; overflow-wrap:anywhere; }
+      #tracklink-pdf-report .field b { display:block; color:#667989; font-size:9px; text-transform:uppercase; margin-bottom:3px; }
+      #tracklink-pdf-report .checks { width:100%; border-collapse:collapse; }
+      #tracklink-pdf-report .checks td, #tracklink-pdf-report .checks th { border:1px solid #d8e1e8; padding:8px; text-align:left; }
+      #tracklink-pdf-report .checks th { background:#eaf2f8; }
+      #tracklink-pdf-report .yes { color:#187447; font-weight:bold; }
+      #tracklink-pdf-report .no { color:#b42318; font-weight:bold; }
+      #tracklink-pdf-report .photos { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+      #tracklink-pdf-report .photos figure { margin:0; border:1px solid #d8e1e8; padding:6px; break-inside:avoid; page-break-inside:avoid; }
+      #tracklink-pdf-report .photos img { display:block; width:100%; height:180px; object-fit:contain; }
+      #tracklink-pdf-report .photos figcaption { font-size:9px; color:#667989; }
+      #tracklink-pdf-report .signatures { display:grid; grid-template-columns:1fr 1fr; gap:25px; margin-top:16px; }
+      #tracklink-pdf-report .signature { height:100px; border-bottom:1px solid #526879; display:flex; flex-direction:column; align-items:center; justify-content:end; }
+      #tracklink-pdf-report .signature img { max-width:100%; height:72px; object-fit:contain; }
+      #tracklink-pdf-report .signature span { font-size:10px; margin:5px; }
+      #tracklink-pdf-report .obs { border:1px solid #d8e1e8; padding:10px; min-height:55px; white-space:pre-wrap; overflow-wrap:anywhere; }
+      #tracklink-pdf-report .footer { margin-top:20px; color:#82909b; font-size:9px; text-align:center; }
+    </style>
+    <article id="tracklink-pdf-report">
+      <header><strong>TRACKLINK</strong><span>SUPERVISIÓN TÉCNICA 2026</span></header>
+      <h1>INFORME DE CHEQUEO</h1>
+      <p class="sub">Registro individual de supervisión técnica, verificación de vestimenta e instalación.</p>
+      <div class="section">1. DATOS DE LA SUPERVISIÓN</div>
+      <div class="grid">
+        ${[["Fecha",r.fecha],["Hora",r.hora],["ORTE de trabajo",r.orte],["Técnico",r.tecnico],["Cliente",r.cliente],["Placa o chasis",r.chasis],["Supervisado por",r.supervisor]].map(([k,v])=>`<div class="field"><b>${esc(k)}</b>${esc(v || "—")}</div>`).join("")}
+      </div>
+      <div class="section">2. VERIFICACIÓN DE VESTIMENTA E INSTALACIÓN</div>
+      <table class="checks"><thead><tr><th>Ítem evaluado</th><th>Resultado</th></tr></thead><tbody>
+        ${checks.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="${String(v || "").trim().toLowerCase()==="no" ? "no" : "yes"}">${esc(v || "Sin dato")}</td></tr>`).join("")}
+      </tbody></table>
+      <div class="section">3. RECOMENDACIONES Y/O OBSERVACIONES</div>
+      <div class="obs">${esc(r.observaciones || "Sin observaciones registradas")}</div>
+      <div class="section">4. EVIDENCIA FOTOGRÁFICA (${(r.photos || []).length})</div>
+      <div class="photos">${photos || "Sin fotografías adjuntas"}</div>
+      <div class="section">5. FIRMAS DIGITALES</div>
+      <div class="signatures">${signatureImg(r.firmaTecnico,"Técnico instalador")}${signatureImg(r.firmaSupervisor,"Supervisor")}</div>
+      <div class="footer">TRACKLINK · INFORME DE CHEQUEO · Registro ${esc(r.id)}</div>
+    </article>`;
+
   document.body.appendChild(container);
   try {
     const images = [...container.querySelectorAll("img")];
-    await Promise.all(images.map(img => img.complete ? Promise.resolve() : new Promise(resolve => { img.onload=resolve; img.onerror=resolve; })));
+    await Promise.all(images.map(img => {
+      if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+      return new Promise(resolve => {
+        img.onload = resolve;
+        img.onerror = resolve;
+        setTimeout(resolve, 5000);
+      });
+    }));
     await window.html2pdf().set({
-      margin: [10, 10, 12, 10], filename,
-      image: { type: "jpeg", quality: 0.96 },
+      margin: [10, 10, 12, 10],
+      filename,
+      image: { type: "jpeg", quality: 0.95 },
       html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       pagebreak: { mode: ["css", "legacy"] }
-    }).from(container).save();
+    }).from(container.querySelector("#tracklink-pdf-report")).save();
   } catch (error) {
     console.error("Error al generar PDF", error);
-    alert("No se pudo generar el PDF. Inténtalo nuevamente.");
+    alert("No se pudo generar el PDF. Revisa la conexión e inténtalo nuevamente.");
   } finally {
     container.remove();
   }
@@ -368,4 +431,5 @@ if(auth) onAuthStateChanged(auth,async u=>{
 window.addEventListener("online",async()=>{if(user){startLiveSync();await syncPending();}});
 window.addEventListener("offline",stopLiveSync);
 resetForm();
+if("serviceWorker"in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{}
 if("serviceWorker"in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
