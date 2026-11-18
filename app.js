@@ -431,5 +431,4 @@ if(auth) onAuthStateChanged(auth,async u=>{
 window.addEventListener("online",async()=>{if(user){startLiveSync();await syncPending();}});
 window.addEventListener("offline",stopLiveSync);
 resetForm();
-if("serviceWorker"in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{}
 if("serviceWorker"in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
