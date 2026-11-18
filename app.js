@@ -273,12 +273,11 @@ async function printCheckReport(r) {
     return src ? `<figure><img src="${src}" alt="Evidencia ${i+1}"><figcaption>${esc(p.name || `Evidencia ${i+1}`)}</figcaption></figure>` : "";
   }).join("");
   const signatureImg = (src, label) => src ? `<div class="signature"><img src="${src}" alt="${label}"><span>${label}</span></div>` : `<div class="signature empty"><span>${label}: No registrada</span></div>`;
-  container.style.cssText = "position:absolute;left:0;top:0;width:794px;background:#fff;z-index:9999;pointer-events:none";
- container.innerHTML = html;
+  
   const filename = `INFORME_CHEQUEO_${String(sequence).padStart(3,"0")}.pdf`;
   const container = document.createElement("div");
   container.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;z-index:-1";
-  container.innerHTML = `<style>
+  container.style.cssText = "position:absolute;left:0;top:0;width:794px;background:#fff;z-index:9999;pointer-events:none";
   *{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#203448;margin:0}header{background:#102b46;color:#fff;padding:16px 20px;border-bottom:5px solid #1683b5}header strong{font-size:21px;letter-spacing:1px}header span{display:block;font-size:11px;letter-spacing:2px;color:#c7dceb;margin-top:4px}h1{font-size:20px;color:#102b46;margin:18px 0 4px}.sub{color:#667989;margin:0 0 16px}.section{background:#102b46;color:#fff;padding:8px 10px;font-weight:bold;margin:15px 0 8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px}.field{border-bottom:1px solid #d8e1e8;padding:5px 2px;min-height:31px}.field b{display:block;color:#667989;font-size:9px;text-transform:uppercase;margin-bottom:3px}.checks{width:100%;border-collapse:collapse}.checks td,.checks th{border:1px solid #d8e1e8;padding:8px;text-align:left}.checks th{background:#eaf2f8}.yes{color:#187447;font-weight:bold}.no{color:#b42318;font-weight:bold}.photos{display:grid;grid-template-columns:1fr 1fr;gap:10px}.photos figure{margin:0;border:1px solid #d8e1e8;padding:6px;break-inside:avoid;page-break-inside:avoid}.photos img{width:100%;height:180px;object-fit:contain}.photos figcaption{font-size:9px;color:#667989}.signatures{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:16px}.signature{height:100px;border-bottom:1px solid #526879;display:flex;flex-direction:column;align-items:center;justify-content:end}.signature img{max-width:100%;height:72px;object-fit:contain}.signature span{font-size:10px;margin:5px}.obs{border:1px solid #d8e1e8;padding:10px;min-height:55px;white-space:pre-wrap}.footer{margin-top:20px;color:#82909b;font-size:9px;text-align:center}</style>
   <header><strong>TRACKLINK</strong><span>SUPERVISIÓN TÉCNICA 2026</span></header>
   <h1>INFORME DE CHEQUEO</h1><p class="sub">Registro individual de supervisión técnica, verificación de vestimenta e instalación.</p>
