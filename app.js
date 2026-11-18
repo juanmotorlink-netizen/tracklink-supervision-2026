@@ -160,31 +160,11 @@ async function syncPending() {
 }
 function getVal(id) { return $(id).value; }
 function signature(id) {
-  const c = $(id), source = c.getContext("2d");
-  // No guardar una imagen vacía como si fuera una firma registrada.
-  const pixels = source.getImageData(0, 0, c.width, c.height).data;
-  let hasInk = false;
-  for (let i = 3; i < pixels.length; i += 4) {
-    if (pixels[i] > 0) { hasInk = true; break; }
-  }
-  if (!hasInk) return "";
-  // Fondo blanco para que la firma se vea correctamente al exportar a PDF.
+  const c = $(id);
+  // Reducir el tamaño de la firma sin perder su legibilidad.
   const out = document.createElement("canvas"); out.width = 600; out.height = 200;
-  const ctx = out.getContext("2d");
-  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, out.width, out.height);
-  ctx.drawImage(c, 0, 0, out.width, out.height);
-  return out.toDataURL("image/jpeg", 0.72);
-}
-function restoreSignature(id, dataUrl) {
-  const c = $(id), ctx = c.getContext("2d");
-  ctx.clearRect(0, 0, c.width, c.height);
-  if (!dataUrl) return Promise.resolve();
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => { ctx.drawImage(img, 0, 0, c.width, c.height); resolve(); };
-    img.onerror = resolve;
-    img.src = dataUrl;
-  });
+  out.getContext("2d").drawImage(c, 0, 0, out.width, out.height);
+  return out.toDataURL("image/jpeg", 0.65);
 }
 function setupCanvas(id) {
   const c = $(id), ctx = c.getContext("2d"); let drawing = false;
@@ -251,18 +231,12 @@ function renderRecords() {
   });
 }
 function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-async function editRecord(r) {
+function editRecord(r) {
   const map={fecha:"fecha",hora:"hora",orte:"orte",tecnico:"tecnico",cliente:"cliente",chasis:"chasis",supervisor:"supervisor",zapato:"zapato",pantalon:"pantalon",polo:"polo",casaca:"casaca",orteOk:"orteOk",senales:"senales",camuflaje:"camuflaje",herramientas:"herramientas",observaciones:"observaciones"};
-  Object.entries(map).forEach(([k,id])=>$(id).value=r[k]??"");
+  Object.entries(map).forEach(([k,id])=>$(id).value=r[k]||"");
   $("recordId").value=r.id;
   pendingPhotos=(r.photos||[]).map(p=>p.dataUrl?{name:p.name,dataUrl:p.dataUrl}:p);
-  renderPreview();
-  // Al editar, recuperar ambas firmas para no borrarlas al volver a guardar.
-  await Promise.all([
-    restoreSignature("sigTecnico", r.firmaTecnico),
-    restoreSignature("sigSupervisor", r.firmaSupervisor)
-  ]);
-  $("lista").hidden=true;$("registro").hidden=false;document.querySelector('[data-tab="registro"]').click();
+  renderPreview();$("lista").hidden=true;$("registro").hidden=false;document.querySelector('[data-tab="registro"]').click();
 }
 async function deleteRecord(r) {
   if(!confirm(`¿Seguro que deseas borrar el registro ${r.orte||r.id}? Esta acción se reflejará en todos los dispositivos.`))return;
@@ -283,8 +257,12 @@ function renderStats(){
   $("stats").innerHTML=`<div class="stat"><b>${total}</b>Supervisiones registradas</div><div class="stat"><b>${records.reduce((n,r)=>n+(r.photos||[]).length,0)}</b>Fotografías</div>`+
     Object.entries(byTech).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="stat"><b>${v}</b>${escapeHtml(k)}</div>`).join("");
 }
-function printCheckReport(r) {
+async function printCheckReport(r) {
   const esc = escapeHtml;
+  if (!window.html2pdf) {
+    alert("No se pudo cargar el generador de PDF. Verifica tu conexión e inténtalo nuevamente.");
+    return;
+  }
   const checks = [
     ["Zapato", r.zapato], ["Pantalón", r.pantalon], ["Polo", r.polo], ["Casaca", r.casaca],
     ["ORTE verificada", r.orteOk], ["Puntos de señales", r.senales],
@@ -295,12 +273,14 @@ function printCheckReport(r) {
     return src ? `<figure><img src="${src}" alt="Evidencia ${i+1}"><figcaption>${esc(p.name || `Evidencia ${i+1}`)}</figcaption></figure>` : "";
   }).join("");
   const signatureImg = (src, label) => src ? `<div class="signature"><img src="${src}" alt="${label}"><span>${label}</span></div>` : `<div class="signature empty"><span>${label}: No registrada</span></div>`;
-  const w = window.open("", "_blank");
-  if (!w) { alert("El navegador bloqueó la ventana del informe. Permite las ventanas emergentes para esta aplicación."); return; }
-  w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe de chequeo - ${esc(r.orte || r.id)}</title>
-  <style>
-  @page{size:A4;margin:14mm}*{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#203448;margin:0}header{background:#102b46;color:#fff;padding:16px 20px;border-bottom:5px solid #1683b5}header strong{font-size:21px;letter-spacing:1px}header span{display:block;font-size:11px;letter-spacing:2px;color:#c7dceb;margin-top:4px}h1{font-size:20px;color:#102b46;margin:18px 0 4px}.sub{color:#667989;margin:0 0 16px}.section{background:#102b46;color:#fff;padding:8px 10px;font-weight:bold;margin:15px 0 8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px}.field{border-bottom:1px solid #d8e1e8;padding:5px 2px;min-height:31px}.field b{display:block;color:#667989;font-size:9px;text-transform:uppercase;margin-bottom:3px}.checks{width:100%;border-collapse:collapse}.checks td,.checks th{border:1px solid #d8e1e8;padding:8px;text-align:left}.checks th{background:#eaf2f8}.yes{color:#187447;font-weight:bold}.no{color:#b42318;font-weight:bold}.photos{display:grid;grid-template-columns:1fr 1fr;gap:10px}.photos figure{margin:0;border:1px solid #d8e1e8;padding:6px;break-inside:avoid}.photos img{width:100%;height:180px;object-fit:contain}.photos figcaption{font-size:9px;color:#667989}.signatures{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:16px}.signature{height:100px;border-bottom:1px solid #526879;display:flex;flex-direction:column;align-items:center;justify-content:end}.signature img{max-width:100%;height:72px;object-fit:contain}.signature span{font-size:10px;margin:5px}.obs{border:1px solid #d8e1e8;padding:10px;min-height:55px;white-space:pre-wrap}.footer{margin-top:20px;color:#82909b;font-size:9px;text-align:center}@media print{button{display:none}}
-  </style></head><body><header><strong>TRACKLINK</strong><span>SUPERVISIÓN TÉCNICA 2026</span></header>
+  const ordered = [...records].sort((a,b)=>String(a.createdAt||a.fecha||"").localeCompare(String(b.createdAt||b.fecha||"")) || String(a.id).localeCompare(String(b.id)));
+  const sequence = Math.max(1, ordered.findIndex(x=>x.id===r.id)+1);
+  const filename = `INFORME_CHEQUEO_${String(sequence).padStart(3,"0")}.pdf`;
+  const container = document.createElement("div");
+  container.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;z-index:-1";
+  container.innerHTML = `<style>
+  *{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#203448;margin:0}header{background:#102b46;color:#fff;padding:16px 20px;border-bottom:5px solid #1683b5}header strong{font-size:21px;letter-spacing:1px}header span{display:block;font-size:11px;letter-spacing:2px;color:#c7dceb;margin-top:4px}h1{font-size:20px;color:#102b46;margin:18px 0 4px}.sub{color:#667989;margin:0 0 16px}.section{background:#102b46;color:#fff;padding:8px 10px;font-weight:bold;margin:15px 0 8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px}.field{border-bottom:1px solid #d8e1e8;padding:5px 2px;min-height:31px}.field b{display:block;color:#667989;font-size:9px;text-transform:uppercase;margin-bottom:3px}.checks{width:100%;border-collapse:collapse}.checks td,.checks th{border:1px solid #d8e1e8;padding:8px;text-align:left}.checks th{background:#eaf2f8}.yes{color:#187447;font-weight:bold}.no{color:#b42318;font-weight:bold}.photos{display:grid;grid-template-columns:1fr 1fr;gap:10px}.photos figure{margin:0;border:1px solid #d8e1e8;padding:6px;break-inside:avoid;page-break-inside:avoid}.photos img{width:100%;height:180px;object-fit:contain}.photos figcaption{font-size:9px;color:#667989}.signatures{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:16px}.signature{height:100px;border-bottom:1px solid #526879;display:flex;flex-direction:column;align-items:center;justify-content:end}.signature img{max-width:100%;height:72px;object-fit:contain}.signature span{font-size:10px;margin:5px}.obs{border:1px solid #d8e1e8;padding:10px;min-height:55px;white-space:pre-wrap}.footer{margin-top:20px;color:#82909b;font-size:9px;text-align:center}</style>
+  <header><strong>TRACKLINK</strong><span>SUPERVISIÓN TÉCNICA 2026</span></header>
   <h1>INFORME DE CHEQUEO</h1><p class="sub">Registro individual de supervisión técnica, verificación de vestimenta e instalación.</p>
   <div class="section">1. DATOS DE LA SUPERVISIÓN</div><div class="grid">
   ${[["Fecha",r.fecha],["Hora",r.hora],["ORTE de trabajo",r.orte],["Técnico",r.tecnico],["Cliente",r.cliente],["Placa o chasis",r.chasis],["Supervisado por",r.supervisor]].map(([k,v])=>`<div class="field"><b>${k}</b>${esc(v || "—")}</div>`).join("")}
@@ -309,8 +289,24 @@ function printCheckReport(r) {
   <div class="section">3. RECOMENDACIONES Y/O OBSERVACIONES</div><div class="obs">${esc(r.observaciones || "Sin observaciones registradas")}</div>
   <div class="section">4. EVIDENCIA FOTOGRÁFICA (${(r.photos||[]).length})</div><div class="photos">${photos || "Sin fotografías adjuntas"}</div>
   <div class="section">5. FIRMAS DIGITALES</div><div class="signatures">${signatureImg(r.firmaTecnico,"Técnico instalador")}${signatureImg(r.firmaSupervisor,"Supervisor")}</div>
-  <div class="footer">TRACKLINK · INFORME DE CHEQUEO · Registro ${esc(r.id)}</div><script>window.onload=()=>{const imgs=[...document.images];Promise.all(imgs.map(i=>i.complete?Promise.resolve():new Promise(res=>{i.onload=res;i.onerror=res}))).then(()=>setTimeout(()=>window.print(),350));};</script></body></html>`);
-  w.document.close();
+  <div class="footer">TRACKLINK · INFORME DE CHEQUEO · Registro ${esc(r.id)}</div>`;
+  document.body.appendChild(container);
+  try {
+    const images = [...container.querySelectorAll("img")];
+    await Promise.all(images.map(img => img.complete ? Promise.resolve() : new Promise(resolve => { img.onload=resolve; img.onerror=resolve; })));
+    await window.html2pdf().set({
+      margin: [10, 10, 12, 10], filename,
+      image: { type: "jpeg", quality: 0.96 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"] }
+    }).from(container).save();
+  } catch (error) {
+    console.error("Error al generar PDF", error);
+    alert("No se pudo generar el PDF. Inténtalo nuevamente.");
+  } finally {
+    container.remove();
+  }
 }
 
 $("exportBtn").onclick=()=>{
