@@ -274,7 +274,7 @@ async function printCheckReport(r) {
   }).join("");
   const signatureImg = (src, label) => src ? `<div class="signature"><img src="${src}" alt="${label}"><span>${label}</span></div>` : `<div class="signature empty"><span>${label}: No registrada</span></div>`;
   container.style.cssText = "position:absolute;left:0;top:0;width:794px;background:#fff;z-index:9999;pointer-events:none";
- container.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;z-index:-1";
+ container.innerHTML = html;
   const filename = `INFORME_CHEQUEO_${String(sequence).padStart(3,"0")}.pdf`;
   const container = document.createElement("div");
   container.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;z-index:-1";
